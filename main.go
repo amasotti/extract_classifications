@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -99,11 +101,15 @@ func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassifi
 
 		// over schlagwoerter
 		for j := 0; j < len(schlagwoerter); j++ {
-			subjects = append(subjects, schlagwoerter[j].Schlagwort)
-			if verbose {
-				fmt.Println("\nTopic/Schlagwort found: ")
-				fmt.Println("----------------------------------------")
-				fmt.Println("Subject: " + schlagwoerter[j].Schlagwort)
+			if schlagwoerter[j].Schlagwort == "" {
+				continue
+			} else {
+				subjects = append(subjects, schlagwoerter[j].Schlagwort)
+				if verbose {
+					fmt.Println("\nTopic/Schlagwort found: ")
+					fmt.Println("----------------------------------------")
+					fmt.Println("Subject: " + schlagwoerter[j].Schlagwort)
+				}
 			}
 		}
 		// over explicit subjects
@@ -136,10 +142,11 @@ func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassifi
 		}
 
 	}
-
+	subjects = ClearDuplicates(subjects) // clear duplicates
 	return *classes, subjects
 }
 
+// ClearDuplicates given a slice deletes the duplicates (TODO: Substitute with a counter, which would be more informative)
 func ClearDuplicates(ToBeCleaned []string) []string {
 	key := make(map[string]bool)
 	list := []string{}
@@ -151,6 +158,37 @@ func ClearDuplicates(ToBeCleaned []string) []string {
 		}
 	}
 	return list
+}
+
+func getXML(slw string, path string, save bool) *Root {
+	body := sendRequest(slw)
+	if save {
+		_ = ioutil.WriteFile(path, body, 0666)
+	}
+
+	parsedXML := new(Root)
+	xml.Unmarshal(body, &parsedXML)
+	return parsedXML
+}
+
+// sendRequest sends the query to the sru address
+func sendRequest(slw string) (body []byte) {
+	// TODO: Allow for more than one schlagwort
+	address := "http://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.slw=%s&recordSchema=mods&maximumRecords=100"
+	request := fmt.Sprintf(address, url.PathEscape(slw))
+	log.Println("GET", request)
+	response, err := http.Get(request)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer response.Body.Close()
+	body, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	return body
 }
 
 /*********************************/
@@ -171,10 +209,18 @@ type FinalClassification struct {
 //	MAIN FUNCTION
 /*********************************/
 func main() {
-	parsedXML := ReadMarshalXML("dostoevsky.xml")
+
+	/*
+		+ for reading an existing XML-file : use the function ReadMarshalXML(path)
+		+ for downloading data from the web use:
+	*/
+	slw := "Umberto Eco"
+	path := "outputs/testXML.xml" // hardcoded for now
+
+	XMLFile := getXML(slw, path, false)
 
 	// Extract list of records
-	recs := parsedXML.Records.Record
+	recs := XMLFile.Records.Record
 
 	finalClass, finalSubjs := ExtractClassifications(recs, false)
 	// print results

@@ -13,11 +13,6 @@ The idea is to create a small flexible tool to extract classifications (rvk, bkl
 The SRU protocol supports several output formats. This scritp works (at moment at least) only with the [MODS](https://en.wikipedia.org/wiki/Metadata_Object_Description_Schema) format.
 
 
-## Temporary: Testing
-
-I'm currently testing the XMLParser. At moment the script doesn't use the HTTP pkg to get the xml but uses a xml file obtained with the following request:
-      https://sru.k10plus.de/gvk?version=1.1&operation=searchRetrieve&query=pica.thm=Dostoevsky&recordSchema=mods&maximumRecords=100
-
 ## Subjects Headings
 
 ### Authority:
@@ -35,7 +30,8 @@ Check [loc.gov](https://www.loc.gov/standards/sourcelist/subject.html) for a com
 
 ## ToDO
 
-+ Use ```net/http``` to download the xml from the web instead of loading it manually (or possibly leave both options open)
++ <del>Use ```net/http``` to download the xml from the web instead of loading it manually (or possibly leave both options open)</del>
++ Allow for more than one query index (at moment only slw *Schlagwort* possible)
 + Give a closer look at the Go idiomatic way of initializing new structs and saving values passing them to the pointers
 + Implement or use a counter to see if some keywords (Schlagwörter) are used more than other
 
