@@ -143,7 +143,7 @@ func ExtractClassifications(results []SingleResult, verbose bool) (OrderedClassi
 
 	}
 	Countedsubjects := CountUnique(subjects)
-	CountedClassification := OrderClassification(*classes)
+	CountedClassification := orderClassification(*classes)
 	return CountedClassification, Countedsubjects
 }
 
@@ -182,30 +182,7 @@ func CountUnique(list []string) map[string]int {
 	return counter
 }
 
-// // SortCounter sorts a Counter created with CountUnique in value order
-// func SortCounter(counter map[string]int) *orderedmap.OrderedMap {
-// 	values := make([]int, 0, len(counter))
-
-// 	for _, v := range counter {
-// 		values = append(values, v)
-// 	}
-// 	//sort.Ints(values)
-// 	sort.Sort(sort.Reverse(sort.IntSlice(values)))
-
-// 	OrderedCounter := orderedmap.New()
-
-// 	for _, v := range values {
-// 		for k, w := range counter {
-// 			if w == v {
-// 				OrderedCounter.Set(k, v)
-// 			}
-// 		}
-// 	}
-
-// 	return OrderedCounter
-// }
-
-func OrderClassification(c FinalClassification) OrderedClassification {
+func orderClassification(c FinalClassification) OrderedClassification {
 	sorted := OrderedClassification{Lcc: CountUnique(c.Lcc), Ddc: CountUnique(c.Ddc), Bisacsh: CountUnique(c.Bisacsh), BISAC: CountUnique(c.BISAC), Bkl: CountUnique(c.Bkl), Rvk: CountUnique(c.Rvk)}
 
 	return sorted
