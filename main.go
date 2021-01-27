@@ -89,7 +89,7 @@ func ReadMarshalXML(path string) *Root {
 }
 
 // ExtractClassifications loops over schlagwörter und classifications and returns string slices
-func ExtractClassifications(results []SingleResult, verbose bool) (finalClasses FinalClassification, finalSubjs []string) {
+func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassification, []string) {
 	var subjects []string
 	var classes = new(FinalClassification)
 
@@ -137,7 +137,7 @@ func ExtractClassifications(results []SingleResult, verbose bool) (finalClasses 
 
 	}
 
-	return finalClasses, finalSubjs
+	return *classes, subjects
 }
 
 func ClearDuplicates(ToBeCleaned []string) []string {
