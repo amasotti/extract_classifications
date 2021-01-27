@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -53,9 +54,24 @@ type Subjects struct {
 	Subject   string `xml:",innerxml"`
 }
 
+// FinalClassification is the struct for storing the extracted classifications
+type FinalClassification struct {
+	Lcc     []string `json:"lcc"`
+	Ddc     []string `json:"ddc"`
+	Bisacsh []string `json:"bisacsh"`
+	BISAC   []string `json:"BISAC"`
+	Bkl     []string `json:"bkl"`
+	Rvk     []string `json:"rvk"`
+}
+
+/*********************************/
+//	MAIN FUNCTION
+/*********************************/
 func main() {
+	var verbose bool = false
+
 	// Read the file
-	xmlFile, err := os.Open("dostoevsky.xml")
+	xmlFile, err := os.Open("dostoevsky.xml") // TODO: implement http GET to automatically retrieve data from the sru address
 
 	if err != nil {
 		log.Println(err)
@@ -71,29 +87,37 @@ func main() {
 	} else {
 		xml.Unmarshal(contents, &parsedXML)
 	}
-	//fmt.Println()
 	recs := parsedXML.Records.Record
+
+	//finalClass := new(FinalClassification)
+	var finalSubjs []string
+	var finalClass = new(FinalClassification)
+
 	for i := 0; i < len(recs); i++ {
 
 		// Loop over schlagwoerter
 		schlagwoerter := recs[i].Mods.Infos.Schlagwoerter
 		if len(schlagwoerter) != 0 {
-			fmt.Println("\n\n\nTopic/Schlagwort found: ")
-			fmt.Println("----------------------------------------")
 			for j := 0; j < len(schlagwoerter); j++ {
 
 				var (
 					subject    = schlagwoerter[j]
-					schalgwort = subject.Schlagwort
+					schlagwort = subject.Schlagwort
 					authority  = "-"
 				)
 				if subject.Authority != "" {
 					authority = subject.Authority
 				}
+				// Save "Schlagwörter" independently of the authority
+				finalSubjs = append(finalSubjs, schlagwort)
 
-				fmt.Println("Subject: " + schalgwort)
-				if authority != "-" {
-					fmt.Println("Assigned by: " + authority)
+				if verbose {
+					fmt.Println("\nTopic/Schlagwort found: ")
+					fmt.Println("----------------------------------------")
+					fmt.Println("Subject: " + schlagwort)
+					if authority != "-" {
+						fmt.Println("Assigned by: " + authority)
+					}
 				}
 			}
 		}
@@ -101,13 +125,40 @@ func main() {
 		// Loop over Classifications
 		classes := recs[i].Mods.Infos.Subjects
 		if len(classes) != 0 {
-			fmt.Println("\nSubject found: ")
-			fmt.Println("--------------------------")
+			if verbose {
+				fmt.Println("\nSubject found: ")
+				fmt.Println("--------------------------")
+			}
 			for j := 0; j < len(classes); j++ {
-				fmt.Println("Authority: '" + classes[j].Authority + "'\tValue: " + classes[j].Subject)
+				switch classes[j].Authority {
+
+				case "lcc":
+					finalClass.Lcc = append(finalClass.Lcc, classes[j].Subject)
+				case "ddc":
+					finalClass.Ddc = append(finalClass.Ddc, classes[j].Subject)
+				case "BISAC":
+					finalClass.BISAC = append(finalClass.BISAC, classes[j].Subject)
+				case "bisacsh":
+					finalClass.Bisacsh = append(finalClass.Bisacsh, classes[j].Subject)
+				case "rvk":
+					finalClass.Rvk = append(finalClass.Rvk, classes[j].Subject)
+				case "bkl":
+					finalClass.Bkl = append(finalClass.Bkl, classes[j].Subject)
+				}
+
+				if verbose {
+					fmt.Println("Authority: '" + classes[j].Authority + "'\tValue: " + classes[j].Subject)
+				}
 			}
 		}
-		fmt.Println("\n\n")
 	}
+
+	// print results
+	//fmt.Println(finalSubjs)
+	//fmt.Println(finalClass)
+
+	//Save to json
+	file, err := json.MarshalIndent(finalClass, "", "\t")
+	err = ioutil.WriteFile("outputs/testClasses.json", file, 0644)
 
 }
