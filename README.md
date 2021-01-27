@@ -31,9 +31,12 @@ Check [loc.gov](https://www.loc.gov/standards/sourcelist/subject.html) for a com
 ## ToDO
 
 + <del>Use ```net/http``` to download the xml from the web instead of loading it manually (or possibly leave both options open)</del>
++ <del>Allow multiple keywords separated by AND</del>
+      slw : "Umberto Eco AND Semiotik"
 + Allow for more than one query index (at moment only slw *Schlagwort* possible)
 + Give a closer look at the Go idiomatic way of initializing new structs and saving values passing them to the pointers
-+ Implement or use a counter to see if some keywords (Schlagwörter) are used more than other
++ <del>Implement or use a counter to see if some keywords (Schlagwörter) are used more than other</del>
+  + Still to do : sort the mapping 
 
 
 ### Example of an output in xml format:

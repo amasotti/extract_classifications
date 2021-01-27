@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 /*********************************/
@@ -206,7 +207,7 @@ func getXML(slw string, path string, save bool) *Root {
 // sendRequest sends the query to the sru address
 func sendRequest(slw string) (body []byte) {
 	// TODO: Allow for more than one schlagwort
-	address := "http://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.slw=%s&recordSchema=mods&maximumRecords=100"
+	address := "http://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.slw=%s&recordSchema=mods&maximumRecords=1000"
 	request := fmt.Sprintf(address, url.PathEscape(slw))
 	log.Println("GET", request)
 	response, err := http.Get(request)
@@ -255,7 +256,11 @@ func main() {
 		+ for reading an existing XML-file : use the function ReadMarshalXML(path)
 		+ for downloading data from the web use:
 	*/
-	slw := "Umberto Eco"
+
+	slw := "Umberto Eco AND Semiotik"
+
+	slw = analyzeInput(slw)
+
 	path := "outputs/testXML.xml" // hardcoded for now
 
 	XMLFile := getXML(slw, path, false)
@@ -276,4 +281,19 @@ func main() {
 	file, _ = json.MarshalIndent(finalSubjs, "", " ")
 	_ = ioutil.WriteFile("outputs/testSubjects.json", file, 0644)
 
+}
+
+func analyzeInput(s string) string {
+	splittedString := strings.Split(s, "AND")
+	newString := ""
+	if len(splittedString) == 1 {
+		newString = s
+		return newString
+	}
+
+	newString = strings.TrimSpace(splittedString[0])
+	for i := 1; i < len(splittedString); i++ {
+		newString += ("+and+pica.slw=" + strings.TrimSpace(splittedString[i]))
+	}
+	return newString
 }
