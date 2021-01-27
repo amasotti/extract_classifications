@@ -33,6 +33,13 @@ I'm currently testing the XMLParser. At moment the script doesn't use the HTTP p
 Check [loc.gov](https://www.loc.gov/standards/sourcelist/subject.html) for a complete list of authority codes.
 
 
+## ToDO
+
++ Use ```net/http``` to download the xml from the web instead of loading it manually (or possibly leave both options open)
++ Give a closer look at the Go idiomatic way of initializing new structs and saving values passing them to the pointers
++ Implement or use a counter to see if some keywords (Schlagwörter) are used more than other
+
+
 ### Example of an output in xml format:
 (<small>Formatted for readability</small>)
 ```xml
