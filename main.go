@@ -91,7 +91,7 @@ func ReadMarshalXML(path string) *Root {
 }
 
 // ExtractClassifications loops over schlagwörter und classifications and returns string slices
-func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassification, []string) {
+func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassification, map[string]int) {
 	var subjects []string
 	var classes = new(FinalClassification)
 
@@ -142,8 +142,8 @@ func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassifi
 		}
 
 	}
-	subjects = ClearDuplicates(subjects) // clear duplicates
-	return *classes, subjects
+	Countedsubjects := CountUnique(subjects)
+	return *classes, Countedsubjects
 }
 
 // ClearDuplicates given a slice deletes the duplicates (TODO: Substitute with a counter, which would be more informative)
@@ -160,11 +160,59 @@ func ClearDuplicates(ToBeCleaned []string) []string {
 	return list
 }
 
+/*********************************/
+//				COUNTERS
+/*********************************/
+// CountUnique counts the number of unique elem in a list and returns a map [elemen] : [occurrences]
+func CountUnique(list []string) map[string]int {
+
+	counter := make(map[string]int)
+	check := make(map[string]bool)
+
+	for _, el := range list {
+		_, counted := check[el]
+		if !counted {
+			counter[el] = 1
+			check[el] = true
+		} else {
+			counter[el] += 1
+		}
+	}
+	return counter
+}
+
+// // SortCounter sorts a Counter created with CountUnique in value order
+// func SortCounter(counter map[string]int) *orderedmap.OrderedMap {
+// 	values := make([]int, 0, len(counter))
+
+// 	for _, v := range counter {
+// 		values = append(values, v)
+// 	}
+// 	//sort.Ints(values)
+// 	sort.Sort(sort.Reverse(sort.IntSlice(values)))
+
+// 	OrderedCounter := orderedmap.New()
+
+// 	for _, v := range values {
+// 		for k, w := range counter {
+// 			if w == v {
+// 				OrderedCounter.Set(k, v)
+// 			}
+// 		}
+// 	}
+
+// 	return OrderedCounter
+// }
+
+/*********************************/
+//	 HTTP FUNCTIONS
+/*********************************/
+
 func getXML(slw string, path string, save bool) *Root {
 	body := sendRequest(slw)
-	if save {
+	/*if save {
 		_ = ioutil.WriteFile(path, body, 0666)
-	}
+	}*/
 
 	parsedXML := new(Root)
 	xml.Unmarshal(body, &parsedXML)
@@ -223,6 +271,7 @@ func main() {
 	recs := XMLFile.Records.Record
 
 	finalClass, finalSubjs := ExtractClassifications(recs, false)
+	fmt.Println(finalSubjs)
 	// print results
 	//fmt.Println(finalSubjs)
 	//fmt.Println(finalClass)

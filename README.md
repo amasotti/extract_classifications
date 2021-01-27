@@ -3,7 +3,7 @@
 **Work in progress**
 
 
-The idea is to create a small flexible tool to extract classifications (rvk, bkl, ddc, lcc) from the GVK Catalogue
+The idea is to create a small flexible tool to extract classifications (rvk, bkl, ddc, lcc) from the GVK Catalogue given a query (keyword, title, author etc...)
 
 + [Sru](https://wiki.k10plus.de/display/K10PLUS/SRU) address
 
