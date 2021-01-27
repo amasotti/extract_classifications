@@ -91,7 +91,7 @@ func ReadMarshalXML(path string) *Root {
 }
 
 // ExtractClassifications loops over schlagwörter und classifications and returns string slices
-func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassification, map[string]int) {
+func ExtractClassifications(results []SingleResult, verbose bool) (OrderedClassification, map[string]int) {
 	var subjects []string
 	var classes = new(FinalClassification)
 
@@ -143,7 +143,8 @@ func ExtractClassifications(results []SingleResult, verbose bool) (FinalClassifi
 
 	}
 	Countedsubjects := CountUnique(subjects)
-	return *classes, Countedsubjects
+	CountedClassification := OrderClassification(*classes)
+	return CountedClassification, Countedsubjects
 }
 
 // ClearDuplicates given a slice deletes the duplicates (TODO: Substitute with a counter, which would be more informative)
@@ -204,6 +205,12 @@ func CountUnique(list []string) map[string]int {
 // 	return OrderedCounter
 // }
 
+func OrderClassification(c FinalClassification) OrderedClassification {
+	sorted := OrderedClassification{Lcc: CountUnique(c.Lcc), Ddc: CountUnique(c.Ddc), Bisacsh: CountUnique(c.Bisacsh), BISAC: CountUnique(c.BISAC), Bkl: CountUnique(c.Bkl), Rvk: CountUnique(c.Rvk)}
+
+	return sorted
+}
+
 /*********************************/
 //	 HTTP FUNCTIONS
 /*********************************/
@@ -253,6 +260,15 @@ type FinalClassification struct {
 	Rvk     []string `json:"rvk"`
 }
 
+type OrderedClassification struct {
+	Lcc     map[string]int `json:"lcc"`
+	Ddc     map[string]int `json:"ddc"`
+	Bisacsh map[string]int `json:"bisacsh"`
+	BISAC   map[string]int `json:"BISAC"`
+	Bkl     map[string]int `json:"bkl"`
+	Rvk     map[string]int `json:"rvk"`
+}
+
 /*********************************/
 //	MAIN FUNCTION
 /*********************************/
@@ -271,7 +287,7 @@ func main() {
 	recs := XMLFile.Records.Record
 
 	finalClass, finalSubjs := ExtractClassifications(recs, false)
-	fmt.Println(finalSubjs)
+
 	// print results
 	//fmt.Println(finalSubjs)
 	//fmt.Println(finalClass)
