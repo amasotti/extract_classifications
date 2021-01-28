@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -72,7 +74,7 @@ type Subjects struct {
 // ReadMarshalXML reads a xml file and returns the marshalled content
 func ReadMarshalXML(path string) *Root {
 	// Read the file
-	xmlFile, err := os.Open(path) // TODO: implement http GET to automatically retrieve data from the sru address
+	xmlFile, err := os.Open(path)
 
 	if err != nil {
 		log.Println(err)
@@ -191,19 +193,16 @@ func getXML(queryText, queryIndex, path string, save bool) *Root {
 		_ = ioutil.WriteFile(path, body, 0666)
 	}
 
-	parsedXML := new(Root)
+	parsedXML := new(Root) // TODO: Avoid new keyword
 	xml.Unmarshal(body, &parsedXML)
 	return parsedXML
 }
 
 // sendRequest sends the query to the sru address
 func sendRequest(queryText, queryIndex string) (body []byte) {
-	// TODO: Allow for more than one schlagwort (needs a further param)
-	address := buildQuery(queryIndex)
-	//address = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.bkl=%s&recordSchema=mods&maximumRecords=1000"
+	request := buildQuery(queryText, queryIndex)
 
-	// TODO: Use here analyze input, allowing for different keywords
-	request := fmt.Sprintf(address, url.PathEscape(queryText))
+	//request := fmt.Sprintf(address, url.PathEscape(queryText))
 	log.Println("GET", request)
 	response, err := http.Get(request)
 	if err != nil {
@@ -219,25 +218,42 @@ func sendRequest(queryText, queryIndex string) (body []byte) {
 	return body
 }
 
-func buildQuery(queryIndex string) (request string) {
+func buildQuery(queryText, queryIndex string) (request string) {
+
 	switch queryIndex {
 	case "slw":
-		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.slw=%s&recordSchema=mods&maximumRecords=1000"
+		fallthrough
 	case "tit":
-		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.tit=%s&recordSchema=mods&maximumRecords=1000"
+		fallthrough
 	case "bkl":
-		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.bkl=%s&recordSchema=mods&maximumRecords=1000"
+		fallthrough
 	case "per":
-		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.per=%s&recordSchema=mods&maximumRecords=1000"
-	default:
-		log.Fatal("Sure, you entered a valid query index? Supported are pica abbreviations like `tit, slw, aut, per, bkl, ddc`")
+		fullQuery := analyzeInput(queryText, queryIndex)
+		request = fmt.Sprintf("https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=%s&recordSchema=mods&maximumRecords=500",fullQuery)
+	default: // Use the full text search
+		GeneralQuery := analyzeInput(queryText, "all")
+		request = fmt.Sprintf("https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=%s&recordSchema=mods&maximumRecords=500",GeneralQuery)
 	}
 	return
 }
-
-/*********************************/
+// analyzeInput looks at the string given and formats this, ready to be used in the a query
+func analyzeInput(query, key string) string {
+	splittedString := strings.Split(query, "AND")
+	newString := ""
+	if len(splittedString) == 1 {
+		newString = "pica." + url.PathEscape(key) + "=" + url.PathEscape(query)
+		return newString
+	}
+	fmt.Println("More than 1 keyword")
+	newString = strings.TrimSpace(splittedString[0])
+	for i := 1; i < len(splittedString); i++ {
+		newString += ("+and+pica." + key + "=" + strings.TrimSpace(url.PathEscape(splittedString[i])))
+	}
+	return newString
+}
+/***************************************/
 //	UTIL FUNCTIONS AND TYPES
-/*********************************/
+/***************************************/
 
 // FinalClassification is the struct for storing the extracted classifications
 type FinalClassification struct {
@@ -257,22 +273,58 @@ type OrderedClassification struct {
 	Bkl     map[string]int `json:"bkl"`
 	Rvk     map[string]int `json:"rvk"`
 }
+/*********************************/
+//			OUTPUT ANALYZER
+/*********************************/
 
-// analyzeInput looks at the string given and formats this, ready to be used in the a query
-func analyzeInput(s string) string {
-	splittedString := strings.Split(s, "AND")
-	newString := ""
-	if len(splittedString) == 1 {
-		newString = s
-		return newString
+
+// keyWordAnalyzer prints the n most used classifications for the query
+func keyWordAnalyzer(keys map[string]int, n int) {
+
+	type kv struct {
+		Key string
+		Value int
 	}
 
-	newString = strings.TrimSpace(splittedString[0])
-	for i := 1; i < len(splittedString); i++ {
-		newString += ("+and+pica.slw=" + strings.TrimSpace(splittedString[i]))
+	sortingList := []kv{}
+	for k, v := range keys {
+		sortingList = append(sortingList, kv{k, v})
 	}
-	return newString
+	sort.Slice(sortingList, func(i, j int) bool { return sortingList[i].Value > sortingList[j].Value })
+
+	for i, pairs := range sortingList {
+		if i >= n { break
+		}
+		fmt.Printf("%s : %d\n",pairs.Key, pairs.Value)
+	}
 }
+
+func classificationAnalyzer(cls OrderedClassification, n int) {
+	// Uses reflect to get the struct fields
+	w := reflect.ValueOf(cls)
+	typ := w.Type()
+
+	for i := 0; i < w.NumField(); i++ {
+		fmt.Printf("The %d most common %v classifications for your query\n",n,typ.Field(i).Name)
+
+		var interfaceConverter = w.Field(i).Interface()
+		var newMap = interfaceConverter.(map[string]int)
+		keyWordAnalyzer(newMap, n)
+
+	}
+}
+
+// quickAnalysis prints out the n most used classifications fount in the query results
+func quickAnalysis(subjs map[string]int, cls OrderedClassification, n int) {
+	fmt.Println("SUBJECT HEADINGS")
+	fmt.Println("------------------------------------------------------------------")
+	fmt.Printf("Printing the %d most common Subject Headings for your query:\n", 5)
+	keyWordAnalyzer(subjs, n)
+	fmt.Println("CLASSIFICATIONS")
+	fmt.Println("\n------------------------------------------------------------------\n")
+	classificationAnalyzer(cls, n)
+}
+
 
 /*********************************/
 //	MAIN FUNCTION
@@ -284,9 +336,9 @@ func main() {
 		+ for downloading data from the web use:
 	*/
 
-	queryIndex := "per"
-	queryText := "Tolstoy"
-	queryText = analyzeInput(queryText)
+	queryIndex := "all"
+	queryText := "Talmy"
+	//queryText = analyzeInput(queryText, queryIndex)
 
 	path := "outputs/testXML.xml" // hardcoded for now
 
@@ -297,15 +349,13 @@ func main() {
 
 	finalClass, finalSubjs := ExtractClassifications(recs, false)
 
-	// print results
-	//fmt.Println(finalSubjs)
-	//fmt.Println(finalClass)
-
 	//Save to json
 	file, _ := json.MarshalIndent(finalClass, "", "\t")
 	_ = ioutil.WriteFile("outputs/testClasses.json", file, 0644)
 
 	file, _ = json.MarshalIndent(finalSubjs, "", " ")
 	_ = ioutil.WriteFile("outputs/testSubjects.json", file, 0644)
+
+	quickAnalysis(finalSubjs, finalClass, 4)
 
 }
