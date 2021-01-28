@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -71,6 +73,7 @@ type Subjects struct {
 // 			AUXILIARY FUNCTIONS
 /*********************************/
 
+/*
 // ReadMarshalXML reads a xml file and returns the marshalled content
 func ReadMarshalXML(path string) *Root {
 	// Read the file
@@ -94,6 +97,7 @@ func ReadMarshalXML(path string) *Root {
 	return parsedXML
 
 }
+*/
 
 // ExtractClassifications loops over schlagwörter und classifications and returns string slices
 func ExtractClassifications(results []SingleResult, verbose bool) (OrderedClassification, map[string]int) {
@@ -185,20 +189,22 @@ func orderClassification(c FinalClassification) OrderedClassification {
 //	 HTTP FUNCTIONS
 /*********************************/
 
-func getXML(queryText, queryIndex, path string, save bool) *Root {
-	body := sendRequest(queryText, queryIndex)
-	if save {
+func getXML(queryText, queryIndex, path, maxResult string, save bool) []SingleResult {
+	body := sendRequest(queryText, queryIndex,maxResult)
+	if save { //TODO check if the directory exist, if not mkdir
 		_ = ioutil.WriteFile(path, body, 0666)
 	}
 
-	parsedXML := new(Root) // TODO: Avoid new keyword
+	parsedXML := Root{} // TODO: Avoid new keyword
 	xml.Unmarshal(body, &parsedXML)
-	return parsedXML
+
+	XmlFile := parsedXML.Records.Record
+	return XmlFile
 }
 
 // sendRequest sends the query to the sru address
-func sendRequest(queryText, queryIndex string) (body []byte) {
-	request := buildQuery(queryText, queryIndex)
+func sendRequest(queryText, queryIndex, maxResult string) (body []byte) {
+	request := buildQuery(queryText, queryIndex,maxResult)
 
 	//request := fmt.Sprintf(address, url.PathEscape(queryText))
 	log.Println("GET", request)
@@ -216,7 +222,7 @@ func sendRequest(queryText, queryIndex string) (body []byte) {
 	return body
 }
 
-func buildQuery(queryText, queryIndex string) (request string) {
+func buildQuery(queryText, queryIndex, maxResult string) (request string) {
 
 	switch queryIndex {
 	case "slw":
@@ -227,10 +233,10 @@ func buildQuery(queryText, queryIndex string) (request string) {
 		fallthrough
 	case "per":
 		fullQuery := analyzeInput(queryText, queryIndex)
-		request = fmt.Sprintf("https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=%s&recordSchema=mods&maximumRecords=500",fullQuery)
+		request = fmt.Sprintf("https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=%s&recordSchema=mods&maximumRecords=%s",fullQuery,maxResult)
 	default: // Use the full text search
 		GeneralQuery := analyzeInput(queryText, "all")
-		request = fmt.Sprintf("https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=%s&recordSchema=mods&maximumRecords=500",GeneralQuery)
+		request = fmt.Sprintf("https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=%s&recordSchema=mods&maximumRecords=%s",GeneralQuery,maxResult)
 	}
 	return
 }
@@ -245,7 +251,7 @@ func analyzeInput(query, key string) string {
 	fmt.Println("More than 1 keyword")
 	newString = strings.TrimSpace(splittedString[0])
 	for i := 1; i < len(splittedString); i++ {
-		newString += ("+and+pica." + key + "=" + strings.TrimSpace(url.PathEscape(splittedString[i])))
+		newString += "+and+pica." + key + "=" + strings.TrimSpace(url.PathEscape(splittedString[i]))
 	}
 	return newString
 }
@@ -284,18 +290,18 @@ func keyWordAnalyzer(keys map[string]int, n int) {
 		Value int
 	}
 
-	sortingList := []kv{}
+	var sortingList []kv
 	for k, v := range keys {
 		sortingList = append(sortingList, kv{k, v})
 	}
 	sort.Slice(sortingList, func(i, j int) bool { return sortingList[i].Value > sortingList[j].Value })
-
-	for i, pairs := range sortingList {
-		if i >= n { break
+		for i, pairs := range sortingList {
+			if i >= n {
+				break
+			}
+			fmt.Printf("%s : %d\n", pairs.Key, pairs.Value)
 		}
-		fmt.Printf("%s : %d\n",pairs.Key, pairs.Value)
 	}
-}
 
 func classificationAnalyzer(cls OrderedClassification, n int) {
 	// Uses reflect to get the struct fields
@@ -303,26 +309,34 @@ func classificationAnalyzer(cls OrderedClassification, n int) {
 	typ := w.Type()
 
 	for i := 0; i < w.NumField(); i++ {
-		fmt.Printf("The %d most common %v classifications for your query\n",n,typ.Field(i).Name)
-
-		var interfaceConverter = w.Field(i).Interface()
-		var newMap = interfaceConverter.(map[string]int)
-		keyWordAnalyzer(newMap, n)
-
+			var interfaceConverter = w.Field(i).Interface()
+			var newMap = interfaceConverter.(map[string]int)
+		if len(newMap) != 0 {
+			fmt.Printf("The %d most common %v classifications for your query\n", n, typ.Field(i).Name)
+			keyWordAnalyzer(newMap, n)
+		}
 	}
 }
 
 // quickAnalysis prints out the n most used classifications fount in the query results
 func quickAnalysis(subjs map[string]int, cls OrderedClassification, n int) {
-	fmt.Println("SUBJECT HEADINGS")
-	fmt.Println("------------------------------------------------------------------")
-	fmt.Printf("Printing the %d most common Subject Headings for your query:\n", 5)
-	keyWordAnalyzer(subjs, n)
+
+	if len(subjs) != 0 {
+		fmt.Println("SUBJECT HEADINGS")
+		fmt.Println("------------------------------------------------------------------")
+		fmt.Printf("Printing the %d most common Subject Headings for your query:\n", 5)
+		keyWordAnalyzer(subjs, n)
+	}
 	fmt.Println("\n\nCLASSIFICATIONS")
-	fmt.Println("------------------------------------------------------------------\n")
+	fmt.Println("------------------------------------------------------------------")
 	classificationAnalyzer(cls, n)
 }
 
+
+func saveJson(i interface{}, fp string) {
+	file, _ := json.MarshalIndent(i, "", " ")
+	_ = ioutil.WriteFile(fp, file, 0644)
+}
 
 /*********************************/
 //	MAIN FUNCTION
@@ -333,30 +347,50 @@ func main() {
 		+ for reading an existing XML-file : use the function ReadMarshalXML(path)
 		+ for downloading data from the web use:
 	*/
-	
+	var verbose bool
+	var save bool
+
+	buf := bufio.NewReader(os.Stdin)
+	queryIndex := flag.String("k","","Pica query field")
+	queryText := flag.String("q", "","The query string")
+	n := flag.Int( "n",7,"How many results should be printed")
+	flag.BoolVar(&verbose, "v", false, "Print all outputs (not recommended)")
+	flag.BoolVar(&save, "s", false,"Save the retrieved xml and the json outputs")
+	path := flag.String("p","outputs/","Path for the results")
+	maxResult := flag.String("m","500","How many results should be retrieved")
+	flag.Parse()
 
 
-	queryIndex := "all"
-	queryText := "Dante"
-	//queryText = analyzeInput(queryText, queryIndex)
+	if flag.NFlag() < 2 {
+		log.Println("Not enough commands, please use at least -q")
+		fmt.Println("Usage:\n\t$", os.Args[0]," + parameters (at least -q): \n\n" +
+			"\t\t-k\t\t query Key (bkl, tit, per, slw (default: all)\n" +
+			"\t\t-q\t\t query String (the text to search)\n" +
+			"\t\t-v\t\t verbose (bool) prints everything on the console, not recommended (debug purpose only)\n" +
+			"\t\t-s\t\t save (bool) if true saves the retrieved xml and the json output files (default : false)\n" +
+			"\t\t-n\t\t number of Results (integer) specifiers how many results will be printed on the console\n" +
+			"\t\t-p\t\t path (string) which subdirectory of the current working directory will be used to save the files (works only if -s is set)" +
+			"\t\t-m\t\t maxResult how many entries should be retrieved (default: 120)")
+		_ , err := buf.ReadByte()
+		log.Println(err)
+		fmt.Println("Exiting program")
+		return
+	}
+	fmt.Println("                                                                  \n                                  88      a8P  88    ,a8888a,     \n                                  88    ,88' ,d88  ,8P\"'  `\"Y8,   \n                                  88  ,88\" 888888 ,8P        Y8,  \n                                  88,d88'      88 88          88  \n                                  8888\"88,     88 88          88  \n                                  88P   Y8b    88 `8b        d8'  \n                                  88     \"88,  88  `8ba,  ,ad8'   \n                                  88       Y8b 88    \"Y8888P\"     \n                                                                  \n                                                                  \n                                                                                            \n         ,ad8888ba,  88                                88    ad88 88                        \n        d8\"'    `\"8b 88                                \"\"   d8\"   \"\"                        \n       d8'           88                                     88                              \n       88            88 ,adPPYYba, ,adPPYba, ,adPPYba, 88 MM88MMM 88  ,adPPYba, 8b,dPPYba,  \n       88            88 \"\"     `Y8 I8[    \"\" I8[    \"\" 88   88    88 a8P_____88 88P'   \"Y8  \n       Y8,           88 ,adPPPPP88  `\"Y8ba,   `\"Y8ba,  88   88    88 8PP\"\"\"\"\"\"\" 88          \n        Y8a.    .a8P 88 88,    ,88 aa    ]8I aa    ]8I 88   88    88 \"8b,   ,aa 88          \n         `\"Y8888Y\"'  88 `\"8bbdP\"Y8 `\"YbbdP\"' `\"YbbdP\"' 88   88    88  `\"Ybbd8\"' 88          \n                                                                                            \n                                                                                            ")
 
-	path := "outputs/testXML.xml" // hardcoded for now
+	XMLFile := getXML(*queryText,*queryIndex, *path + "Results.xml", *maxResult, save)
+	fmt.Printf("Number of results: %d \n -----------------------------\n", len(XMLFile))
 
-	XMLFile := getXML(queryText,queryIndex, path, false)
+	finalClass, finalSubjs := ExtractClassifications(XMLFile, verbose)
 
-	// Extract list of records
-	recs := XMLFile.Records.Record
+	//Save to json TODO: Build a function to save json
+	if save {
+		saveJson(finalClass, *path + "Classes.json")
+		saveJson(finalSubjs, *path + "SubjectHeadings.json")
+	}
 
-	fmt.Printf("Number of results: %d \n -----------------------------\n", len(recs))
-
-	finalClass, finalSubjs := ExtractClassifications(recs, false)
-
-	//Save to json
-	file, _ := json.MarshalIndent(finalClass, "", "\t")
-	_ = ioutil.WriteFile("outputs/testClasses.json", file, 0644)
-	file, _ = json.MarshalIndent(finalSubjs, "", " ")
-	_ = ioutil.WriteFile("outputs/testSubjects.json", file, 0644)
-
-	quickAnalysis(finalSubjs, finalClass, 7)
+	// Print analysis
+	quickAnalysis(finalSubjs, finalClass, *n)
 
 }
+
