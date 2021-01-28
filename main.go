@@ -312,7 +312,7 @@ func classificationAnalyzer(cls OrderedClassification, n int) {
 			var interfaceConverter = w.Field(i).Interface()
 			var newMap = interfaceConverter.(map[string]int)
 		if len(newMap) != 0 {
-			fmt.Printf("The %d most common %v classifications for your query\n", n, typ.Field(i).Name)
+			fmt.Printf("\n\nThe %d most common %v classifications for your query\n", n, typ.Field(i).Name)
 			keyWordAnalyzer(newMap, n)
 		}
 	}
@@ -324,7 +324,7 @@ func quickAnalysis(subjs map[string]int, cls OrderedClassification, n int) {
 	if len(subjs) != 0 {
 		fmt.Println("SUBJECT HEADINGS")
 		fmt.Println("------------------------------------------------------------------")
-		fmt.Printf("Printing the %d most common Subject Headings for your query:\n", 5)
+		fmt.Printf("Printing the %d most common Subject Headings for your query:\n\n", n)
 		keyWordAnalyzer(subjs, n)
 	}
 	fmt.Println("\n\nCLASSIFICATIONS")
@@ -347,6 +347,7 @@ func main() {
 		+ for reading an existing XML-file : use the function ReadMarshalXML(path)
 		+ for downloading data from the web use:
 	*/
+
 	var verbose bool
 	var save bool
 
@@ -369,17 +370,16 @@ func main() {
 			"\t\t-v\t\t verbose (bool) prints everything on the console, not recommended (debug purpose only)\n" +
 			"\t\t-s\t\t save (bool) if true saves the retrieved xml and the json output files (default : false)\n" +
 			"\t\t-n\t\t number of Results (integer) specifiers how many results will be printed on the console\n" +
-			"\t\t-p\t\t path (string) which subdirectory of the current working directory will be used to save the files (works only if -s is set)" +
+			"\t\t-p\t\t path (string) which subdirectory of the current working directory will be used to save the files (works only if -s is set)\n" +
 			"\t\t-m\t\t maxResult how many entries should be retrieved (default: 120)")
 		_ , err := buf.ReadByte()
 		log.Println(err)
 		fmt.Println("Exiting program")
 		return
 	}
-	fmt.Println("                                                                  \n                                  88      a8P  88    ,a8888a,     \n                                  88    ,88' ,d88  ,8P\"'  `\"Y8,   \n                                  88  ,88\" 888888 ,8P        Y8,  \n                                  88,d88'      88 88          88  \n                                  8888\"88,     88 88          88  \n                                  88P   Y8b    88 `8b        d8'  \n                                  88     \"88,  88  `8ba,  ,ad8'   \n                                  88       Y8b 88    \"Y8888P\"     \n                                                                  \n                                                                  \n                                                                                            \n         ,ad8888ba,  88                                88    ad88 88                        \n        d8\"'    `\"8b 88                                \"\"   d8\"   \"\"                        \n       d8'           88                                     88                              \n       88            88 ,adPPYYba, ,adPPYba, ,adPPYba, 88 MM88MMM 88  ,adPPYba, 8b,dPPYba,  \n       88            88 \"\"     `Y8 I8[    \"\" I8[    \"\" 88   88    88 a8P_____88 88P'   \"Y8  \n       Y8,           88 ,adPPPPP88  `\"Y8ba,   `\"Y8ba,  88   88    88 8PP\"\"\"\"\"\"\" 88          \n        Y8a.    .a8P 88 88,    ,88 aa    ]8I aa    ]8I 88   88    88 \"8b,   ,aa 88          \n         `\"Y8888Y\"'  88 `\"8bbdP\"Y8 `\"YbbdP\"' `\"YbbdP\"' 88   88    88  `\"Ybbd8\"' 88          \n                                                                                            \n                                                                                            ")
 
 	XMLFile := getXML(*queryText,*queryIndex, *path + "Results.xml", *maxResult, save)
-	fmt.Printf("Number of results: %d \n -----------------------------\n", len(XMLFile))
+	fmt.Printf("\nNumber of results: %d \n-----------------------------------------------------------------\n\n", len(XMLFile))
 
 	finalClass, finalSubjs := ExtractClassifications(XMLFile, verbose)
 

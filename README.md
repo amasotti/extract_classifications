@@ -3,7 +3,7 @@
 **Work in progress**
 
 
-The idea is to create a small flexible tool to extract classifications (rvk, bkl, ddc, lcc) from the GVK Catalogue given a query (keyword, title, author etc...)
+The idea is to create a small flexible tool to extract library classifications (rvk, bkl, ddc, lcc) from the GVK Catalogue given a query (keyword, title, author etc...)
 
 + [Sru](https://wiki.k10plus.de/display/K10PLUS/SRU) address
 
@@ -12,6 +12,32 @@ The idea is to create a small flexible tool to extract classifications (rvk, bkl
 
 The SRU protocol supports several output formats. This scritp works (at moment at least) only with the [MODS](https://en.wikipedia.org/wiki/Metadata_Object_Description_Schema) format.
 
+This is a personal project, created mostly for fun, to learn Go and to make some of my daily-tasks easier. It is not perfect at all
+but feel free to play with the code or suggest me improvements. Install the code (with correctly installed GO environment) in your directory using
+
+        go get github.com/amasotti/k10_classify
+
+Build the binary with
+
+        go build main.go
+
+Play with it ;) 
+
+#### Usage:
+
+```
+Usage:
+$ klassify_10.exe  + parameters (at least -q):
+
+    -k               query Key (bkl, tit, per, slw (default: all)
+    -q               query String (the text to search)
+    -v               verbose (bool) prints everything on the console, not recommended (debug purpose only)
+    -s               save (bool) if true saves the retrieved xml and the json output files (default : false)
+    -n               number of Results (integer) specifiers how many results will be printed on the console
+    -p               path (string) which subdirectory of the current working directory will be used to save the files (works only if -s is set)             
+    -m               maxResult how many entries should be retrieved
+
+```
 
 ## Subjects Headings
 
@@ -28,160 +54,144 @@ The SRU protocol supports several output formats. This scritp works (at moment a
 Check [loc.gov](https://www.loc.gov/standards/sourcelist/subject.html) for a complete list of authority codes.
 
 
+### Example of raw data in MODS format:
+
+see [test example](https://github.com/amasotti/k10_classify/blob/main/testXML.xml)
+
+
+## Output examples:
+
+### Json output example
+
+#### Classification
+
+```json
+{
+	"lcc": {
+		"AG": 1,
+		"B": 2,
+		"B1-5802": 1,
+                ...
+	},
+	"ddc": {
+		"000": 6,
+		"001": 1,
+		"001.51": 1,
+                ...
+	},
+	"bisacsh": {},
+	"BISAC": {
+		"ART 043000": 1,
+		"ART015000": 2,
+		"ART015100": 1,
+		          ...
+	},
+	"bkl": {
+		"02.01": 3,
+		"02.02": 1,
+		"02.13": 4,
+		          ...
+	},
+	"rvk": {
+		"AK 18000": 2,
+		"AK 39500": 2,
+		"AK 39540": 1,
+                  ...
+	}
+}
+
+```
+
+
+
+
+### Console output
+
+<pre>
+$ go run  main.go -k swl -q "Umberto Eco" -m 580
+
+2021/01/28 16:21:14 GET https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.all=Umberto%20Eco&recordSchema=mods&maximumRecords=580
+
+<strong>Number of results: 580</strong>
+------------------------------------------------------------------
+SUBJECT HEADINGS
+------------------------------------------------------------------
+
+Printing the 5 most common Subject Headings for your query:
+
+Geschichte : 54
+Literatur : 39
+Semiotik : 28
+Criticism and interpretation : 27
+Kunst : 26
+20th century : 25
+History and criticism : 24
+
+
+CLASSIFICATIONS
+------------------------------------------------------------------
+The 7 most common Lcc classifications for your query
+
+PQ4865.C6 : 41
+PQ : 18
+PN : 10
+P99 : 7
+PN241 : 5
+D : 3
+BH81 : 3
+
+The 7 most common Ddc classifications for your query
+
+850 : 40
+853 : 24
+800 : 19
+850 B : 19
+853.914 : 15
+700 : 14
+809 : 14
+
+The 7 most common BISAC classifications for your query
+
+LIT004200 : 2
+LIT006000 : 2
+LIT 006000 : 2
+LIT000000 : 2
+ART015000 : 2
+LIT 004200 : 2
+POL 019000 : 1
+
+The 7 most common Bkl classifications for your query
+
+18.27 : 118
+17.97 : 79
+18.00 : 44
+20.06 : 22
+17.73 : 15
+17.08 : 15
+08.41 : 11
+
+The 7 most common Rvk classifications for your query
+
+IV 25480 : 108
+IV 25481 : 35
+LH 61040 : 15
+CC 6900 : 14
+AK 39580 : 8
+ER 730 : 8
+EC 1070 : 7
+
+</pre>
+
+
 ## ToDO
 
 + <del>Use ```net/http``` to download the xml from the web instead of loading it manually (or possibly leave both options open)</del>
 + <del>Allow multiple keywords separated by AND</del>
       slw : "Umberto Eco AND Semiotik"
-+ Allow for more than one query index (at moment only slw *Schlagwort* possible)
++ <del>Allow for more than one query key (at moment only slw *Schlagwort* possible)</del>
+    + Allow more than one key at the same time
 + Give a closer look at the Go idiomatic way of initializing new structs and saving values passing them to the pointers
 + <del>Implement or use a counter to see if some keywords (Schlagwörter) are used more than other</del>
-  + Still to do : sort the mapping 
+  + <del>Still to do : sort the mapping</del> 
 
-
-### Example of an output in xml format:
-(<small>Formatted for readability</small>)
-```xml
-    <zs:searchRetrieveResponse>
-      <zs:version>1.1</zs:version>
-      <zs:numberOfRecords>1007</zs:numberOfRecords>
-      <zs:records>
-        <zs:record>
-          <zs:recordSchema>mods</zs:recordSchema>
-          <zs:recordPacking>xml</zs:recordPacking>
-          <zs:recordData>
-            <mods version="3.6" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-6.xsd">
-
-              <titleInfo>
-                <title>Irène Némirovsky's Russian Influences</title>
-                <subTitle>Tolstoy, Dostoevsky and Chekhov</subTitle>
-              </titleInfo>
-
-              <name type="personal" usage="primary">
-                <namePart>Cenedese, Marta-Laura</namePart>
-                  <role>
-                    <roleTerm type="text">VerfasserIn</roleTerm>
-                  </role>
-                  <role>
-                    <roleTerm authority="marcrelator" type="code">aut</roleTerm>
-                </role>
-              </name>
-              <typeOfResource>text</typeOfResource>
-              <genre authority="rdacontent">Text</genre>
-
-              <originInfo>
-                <place>
-                  <placeTerm type="code" authority="marccountry">gw</placeTerm>
-                </place>
-                <place>
-                  <placeTerm type="code" authority="iso3166">XA-DE</placeTerm>
-                </place>
-                <dateIssued encoding="marc">2021</dateIssued>
-                <edition>1st ed. 2021.</edition>
-                <issuance>monographic</issuance>
-                </originInfo>
-                <originInfo eventType="publication">
-                  <place></place>
-                  <publisher>Springer International Publishing</publisher>
-                  <dateIssued>2021.</dateIssued>
-              </originInfo>
-              
-              <originInfo eventType="publication">
-                <place>
-                  <placeTerm type="text">Cham</placeTerm>
-                </place>
-                <publisher>Imprint: Palgrave Macmillan</publisher>
-                <dateIssued>2021.</dateIssued>
-              </originInfo>
-              <language>
-                <languageTerm authority="iso639-2b" type="code">eng</languageTerm>
-              </language>
-              
-              <physicalDescription>
-                <form authority="marccategory">electronic resource</form>
-                <form authority="marcsmd">remote</form>
-                <extent>1 Online-Ressource(XX, 213 p. 1 illus.)</extent>
-                <form type="media" authority="rdamedia">Computermedien</form>
-                <form type="carrier" authority="rdacarrier">Online-Ressource</form>
-              </physicalDescription>
-              
-              <abstract type="Summary">
-              1. Introduction; Creative Encounters over Time and Space: Writers, Readers, and Researchers -- 2. From Russia to France, via England: Suite française, War and Peace, and E. M. Forster -- 3. Departing from Tolstoy: Polyphony and Monologism -- 4. Beyond Tolstoy: Music -- 5. Dreams from Underground -- 5. The Abject -- 6. An Anthropology of Suffering -- 7. La Vie de Tchekhov: A Romanced Biography -- 8. La Vie de Tchekhov in the 21st Century -- 9. Conclusion: A Russian Suite.
-              </abstract>
-
-              <abstract type="Summary">
-              This book explores the influence of Tolstoy, Dostoevsky, and Chekhov on Russian-born French language writer Irène Némirovsky. It considers the complexity of each of these relationships and the different modes in which they appear; demonstrating how, by skillfully integrating reading and writing, reception and creation, Némirovsky engaged with Russian literature within her own work. Through detailed analysis of the intersections between novels, short stories and archival sources, the book assesses to what degree Tolstoy, Dostoevsky and Chekhov influenced Némirovsky, how this influence affected her work, and to what effects. To this aim the book articulates the notion of creative influence, a method that, in conversation with theories of influence, intertextuality, and reception aesthetics, seeks to reflect a “meeting of artistic minds” that includes affective, ethical, and creative encounters between writers, readers, and researchers.
-              </abstract>
-
-              <note type="statement of responsibility" altRepGroup="00">by Marta-Laura Cenedese</note>
-              <subject authority="lcsh">
-                <topic>Literature, Modern—20th century</topic>
-              </subject>
-                <subject authority="lcsh">
-              <topic>European literature</topic>
-                </subject>
-              <subject authority="lcsh">
-                <topic>Comparative literature</topic>
-              </subject>
-              
-              <classification authority="ddc" edition="23">809.04</classification>
-              <classification authority="bicssc">DSBH</classification>
-              <classification authority="bisacsh">LIT024050</classification>
-              
-              <location>
-                <url displayLabel="electronic resource" usage="primary display" note="Lizenzpflichtig">https://doi.org/10.1007/978-3-030-44203-3</url>
-              </location>
-              
-              <relatedItem type="series">
-                <titleInfo>
-                  <title>Palgrave Studies in Modern European Literature</title>
-                </titleInfo>
-              </relatedItem>
-              
-              <relatedItem type="series">
-                <titleInfo>
-                  <title>Springer eBook Collection</title>
-                </titleInfo>
-              </relatedItem>
-
-              <relatedItem type="otherFormat"/>
-              <relatedItem type="otherFormat"/>
-              <relatedItem type="otherFormat"/>
-              
-              <relatedItem type="otherFormat" otherType="Erscheint auch als" displayLabel="Erscheint auch als">
-                <note>Druck-Ausgabe</note>
-              </relatedItem>
-              
-              <relatedItem type="otherFormat" otherType="Erscheint auch als" displayLabel="Erscheint auch als">
-                <note>Druck-Ausgabe</note>
-              </relatedItem>
-              
-              <relatedItem type="otherFormat" otherType="Erscheint auch als" displayLabel="Erscheint auch als">
-                <note>Druck-Ausgabe</note>
-              </relatedItem>
-              
-              <identifier type="isbn">9783030442033</identifier>
-              <identifier type="doi">10.1007/978-3-030-44203-3</identifier>
-              
-              <recordInfo>
-                <descriptionStandard>rda</descriptionStandard>
-                <recordContentSource authority="marcorg">DE-627</recordContentSource>
-                <recordCreationDate encoding="marc">201201</recordCreationDate>
-                <recordChangeDate encoding="iso8601">20201201105043.0</recordChangeDate>
-                <recordIdentifier source="DE-627">1741583977</recordIdentifier>
-              
-              <recordOrigin>
-                Converted from MARCXML to MODS version 3.6 using MARC21slim2MODS3-6.xsl (Revision 1.119 2018/06/21)
-              </recordOrigin>
-              
-              <languageOfCataloging>
-                <languageTerm authority="iso639-2b" type="code">ger</languageTerm>
-              </languageOfCataloging>
-              
-              </recordInfo>
-                </mods>
-            </zs:recordData>
-    <zs:recordPosition>1</zs:recordPosition>
-    </zs:record>
-```
 
