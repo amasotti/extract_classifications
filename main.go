@@ -122,9 +122,7 @@ func ExtractClassifications(results []SingleResult, verbose bool) (OrderedClassi
 			}
 		}
 		// over explicit subjects
-		if len(classifications) == 0 {
-			log.Println("Item without classification --- skipping it")
-		} else {
+		if len(classifications) != 0 {
 			if verbose {
 				fmt.Println("\nClassification found: ")
 				fmt.Println("--------------------------")
@@ -320,8 +318,8 @@ func quickAnalysis(subjs map[string]int, cls OrderedClassification, n int) {
 	fmt.Println("------------------------------------------------------------------")
 	fmt.Printf("Printing the %d most common Subject Headings for your query:\n", 5)
 	keyWordAnalyzer(subjs, n)
-	fmt.Println("CLASSIFICATIONS")
-	fmt.Println("\n------------------------------------------------------------------\n")
+	fmt.Println("\n\nCLASSIFICATIONS")
+	fmt.Println("------------------------------------------------------------------\n")
 	classificationAnalyzer(cls, n)
 }
 
@@ -335,9 +333,11 @@ func main() {
 		+ for reading an existing XML-file : use the function ReadMarshalXML(path)
 		+ for downloading data from the web use:
 	*/
+	
+
 
 	queryIndex := "all"
-	queryText := "Talmy"
+	queryText := "Dante"
 	//queryText = analyzeInput(queryText, queryIndex)
 
 	path := "outputs/testXML.xml" // hardcoded for now
@@ -347,15 +347,16 @@ func main() {
 	// Extract list of records
 	recs := XMLFile.Records.Record
 
+	fmt.Printf("Number of results: %d \n -----------------------------\n", len(recs))
+
 	finalClass, finalSubjs := ExtractClassifications(recs, false)
 
 	//Save to json
 	file, _ := json.MarshalIndent(finalClass, "", "\t")
 	_ = ioutil.WriteFile("outputs/testClasses.json", file, 0644)
-
 	file, _ = json.MarshalIndent(finalSubjs, "", " ")
 	_ = ioutil.WriteFile("outputs/testSubjects.json", file, 0644)
 
-	quickAnalysis(finalSubjs, finalClass, 4)
+	quickAnalysis(finalSubjs, finalClass, 7)
 
 }
