@@ -53,7 +53,9 @@ type Info struct {
 type Schlagwoerter struct {
 	XMLName    xml.Name `xml:"subject"`
 	Authority  string   `xml:"authority,attr"`
-	Schlagwort string   `xml:"topic"`
+	SchlagwortGeneral string   `xml:"topic"`
+	SchlagwortTemporal string   `xml:"temporal"`
+	SchlagwortGeographic string   `xml:"geographic"`
 }
 
 // Subjects finds the categories (codes) and the assigning authority
@@ -102,15 +104,19 @@ func ExtractClassifications(results []SingleResult, verbose bool) (OrderedClassi
 
 		// over schlagwoerter
 		for j := 0; j < len(schlagwoerter); j++ {
-			if schlagwoerter[j].Schlagwort == "" {
-				continue
-			} else {
-				subjects = append(subjects, schlagwoerter[j].Schlagwort)
+			if schlagwoerter[j].SchlagwortGeneral != "" {
 				if verbose {
 					fmt.Println("\nTopic/Schlagwort found: ")
 					fmt.Println("----------------------------------------")
-					fmt.Println("Subject: " + schlagwoerter[j].Schlagwort)
+					fmt.Println("Subject: " + schlagwoerter[j].SchlagwortGeneral)
 				}
+				subjects = append(subjects, schlagwoerter[j].SchlagwortGeneral)
+			}
+			if schlagwoerter[j].SchlagwortGeographic != "" {
+				subjects = append(subjects, schlagwoerter[j].SchlagwortGeographic)
+			}
+			if schlagwoerter[j].SchlagwortTemporal != "" {
+				subjects = append(subjects, schlagwoerter[j].SchlagwortTemporal)
 			}
 		}
 		// over explicit subjects
@@ -147,21 +153,6 @@ func ExtractClassifications(results []SingleResult, verbose bool) (OrderedClassi
 	CountedClassification := orderClassification(*classes)
 	return CountedClassification, Countedsubjects
 }
-
-// ClearDuplicates given a slice deletes the duplicates (TODO: Substitute with a counter, which would be more informative)
-func ClearDuplicates(ToBeCleaned []string) []string {
-	key := make(map[string]bool)
-	list := []string{}
-
-	for _, entry := range ToBeCleaned {
-		if _, value := key[entry]; !value {
-			key[entry] = true
-			list = append(list, entry)
-		}
-	}
-	return list
-}
-
 /*********************************/
 //				COUNTERS
 /*********************************/
@@ -183,6 +174,7 @@ func CountUnique(list []string) map[string]int {
 	return counter
 }
 
+// orderClassification transforms a list of classifications into a counted list of classifications
 func orderClassification(c FinalClassification) OrderedClassification {
 	sorted := OrderedClassification{Lcc: CountUnique(c.Lcc), Ddc: CountUnique(c.Ddc), Bisacsh: CountUnique(c.Bisacsh), BISAC: CountUnique(c.BISAC), Bkl: CountUnique(c.Bkl), Rvk: CountUnique(c.Rvk)}
 
@@ -193,11 +185,11 @@ func orderClassification(c FinalClassification) OrderedClassification {
 //	 HTTP FUNCTIONS
 /*********************************/
 
-func getXML(slw string, path string, save bool) *Root {
-	body := sendRequest(slw)
-	/*if save {
+func getXML(queryText, queryIndex, path string, save bool) *Root {
+	body := sendRequest(queryText, queryIndex)
+	if save {
 		_ = ioutil.WriteFile(path, body, 0666)
-	}*/
+	}
 
 	parsedXML := new(Root)
 	xml.Unmarshal(body, &parsedXML)
@@ -205,10 +197,13 @@ func getXML(slw string, path string, save bool) *Root {
 }
 
 // sendRequest sends the query to the sru address
-func sendRequest(slw string) (body []byte) {
-	// TODO: Allow for more than one schlagwort
-	address := "http://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.slw=%s&recordSchema=mods&maximumRecords=1000"
-	request := fmt.Sprintf(address, url.PathEscape(slw))
+func sendRequest(queryText, queryIndex string) (body []byte) {
+	// TODO: Allow for more than one schlagwort (needs a further param)
+	address := buildQuery(queryIndex)
+	//address = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.bkl=%s&recordSchema=mods&maximumRecords=1000"
+
+	// TODO: Use here analyze input, allowing for different keywords
+	request := fmt.Sprintf(address, url.PathEscape(queryText))
 	log.Println("GET", request)
 	response, err := http.Get(request)
 	if err != nil {
@@ -222,6 +217,22 @@ func sendRequest(slw string) (body []byte) {
 		return
 	}
 	return body
+}
+
+func buildQuery(queryIndex string) (request string) {
+	switch queryIndex {
+	case "slw":
+		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.slw=%s&recordSchema=mods&maximumRecords=1000"
+	case "tit":
+		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.tit=%s&recordSchema=mods&maximumRecords=1000"
+	case "bkl":
+		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.bkl=%s&recordSchema=mods&maximumRecords=1000"
+	case "per":
+		request = "https://sru.gbv.de/gvk?version=1.1&operation=searchRetrieve&query=pica.per=%s&recordSchema=mods&maximumRecords=1000"
+	default:
+		log.Fatal("Sure, you entered a valid query index? Supported are pica abbreviations like `tit, slw, aut, per, bkl, ddc`")
+	}
+	return
 }
 
 /*********************************/
@@ -247,6 +258,22 @@ type OrderedClassification struct {
 	Rvk     map[string]int `json:"rvk"`
 }
 
+// analyzeInput looks at the string given and formats this, ready to be used in the a query
+func analyzeInput(s string) string {
+	splittedString := strings.Split(s, "AND")
+	newString := ""
+	if len(splittedString) == 1 {
+		newString = s
+		return newString
+	}
+
+	newString = strings.TrimSpace(splittedString[0])
+	for i := 1; i < len(splittedString); i++ {
+		newString += ("+and+pica.slw=" + strings.TrimSpace(splittedString[i]))
+	}
+	return newString
+}
+
 /*********************************/
 //	MAIN FUNCTION
 /*********************************/
@@ -257,13 +284,13 @@ func main() {
 		+ for downloading data from the web use:
 	*/
 
-	slw := "Umberto Eco AND Semiotik"
-
-	slw = analyzeInput(slw)
+	queryIndex := "per"
+	queryText := "Tolstoy"
+	queryText = analyzeInput(queryText)
 
 	path := "outputs/testXML.xml" // hardcoded for now
 
-	XMLFile := getXML(slw, path, false)
+	XMLFile := getXML(queryText,queryIndex, path, false)
 
 	// Extract list of records
 	recs := XMLFile.Records.Record
@@ -281,19 +308,4 @@ func main() {
 	file, _ = json.MarshalIndent(finalSubjs, "", " ")
 	_ = ioutil.WriteFile("outputs/testSubjects.json", file, 0644)
 
-}
-
-func analyzeInput(s string) string {
-	splittedString := strings.Split(s, "AND")
-	newString := ""
-	if len(splittedString) == 1 {
-		newString = s
-		return newString
-	}
-
-	newString = strings.TrimSpace(splittedString[0])
-	for i := 1; i < len(splittedString); i++ {
-		newString += ("+and+pica.slw=" + strings.TrimSpace(splittedString[i]))
-	}
-	return newString
 }
