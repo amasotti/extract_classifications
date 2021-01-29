@@ -15,7 +15,7 @@ The SRU protocol supports several output formats. This scritp works (at moment a
 This is a personal project, created mostly for fun, to learn Go and to make some of my daily-tasks easier. It is not perfect at all
 but feel free to play with the code or suggest me improvements. Install the code (with correctly installed GO environment) in your directory using
 
-        go get github.com/amasotti/k10_classify
+        go get github.com/extract_classifications
 
 Build the binary with
 
@@ -193,5 +193,13 @@ EC 1070 : 7
 + Give a closer look at the Go idiomatic way of initializing new structs and saving values passing them to the pointers
 + <del>Implement or use a counter to see if some keywords (Schlagwörter) are used more than other</del>
   + <del>Still to do : sort the mapping</del> 
+
+## Other databases
+
+# B3Kat (Berlin-Brandenburg)
+
+		http://bvbr.bib-bvb.de:5661/bvb01sru?version=1.1&recordSchema=marcxml&operation=searchRetrieve&query=marcxml.subject=Umberto%20Eco&maximumRecords=20
+
+[Beispiele](https://www.bib-bvb.de/documents/10792/7b1d3097-4895-4e94-a016-516ac765e15f)
 
 

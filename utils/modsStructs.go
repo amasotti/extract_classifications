@@ -6,8 +6,14 @@ import "encoding/xml"
 //			XML STRUCTS
 /*********************************/
 
+/*
+This file contains the structs needed to read the mods-xml structure
+
 // TODO: Posssibly convert the data array into array of pointers (should be faster)
 
+*/
+
+ */
 // Root tag
 type Root struct {
 	XMLName xml.Name
