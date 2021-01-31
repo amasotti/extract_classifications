@@ -13,7 +13,6 @@ This file contains the structs needed to read the mods-xml structure
 
 */
 
- */
 // Root tag
 type Root struct {
 	XMLName xml.Name
